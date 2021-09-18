@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <limits.h> 
 
-#define BUF_SIZE 8192
+#define BUF_SIZE 4096
 
 int good_close(int fd) 
 {

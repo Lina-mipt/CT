@@ -43,6 +43,12 @@ int main(int argc, char * argv[])
 		fprintf(stderr, "Usage: %s path text", argv[0]); 
 		return 1; 
 	}
+
+	if(strcmp(argv[1], argv[2]) == 0) 
+	{
+		perror("You can't copy the file to itself"); 
+		return 8; 
+	}
 	
 	int fd_r = open(argv[1], O_RDONLY, S_IRUSR | S_IRGRP);  
 

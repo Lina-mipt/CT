@@ -8,16 +8,16 @@
 #include <stdlib.h>
 #include <limits.h> 
 
-// I don't know how to realize fd closing in the best way. It seems to me, that my version looks more like a crutch than a beautiful and correct solution. So, I need your advice. 
+#define BUF_SIZE 8192
 
 int good_close(int fd) 
 {
 	if (close(fd) < 0) 
 	{
 		perror("Failure during close"); 
-		return 7; 
+		return 9; 
 	}
-
+	
 	return 0; 
 }
 
@@ -36,6 +36,37 @@ ssize_t write_all(int fd, const void *buf, size_t count)
 	return (ssize_t)bytes_written; 
 }
 
+int my_copy(int fd_r, int fd_w) 
+{
+	char * str_tmp; 
+
+	str_tmp = (char*)malloc(BUF_SIZE); 
+	if (str_tmp == NULL) 
+	{
+		perror("Faild to allocate the memory");
+		return 6; 
+	}
+
+	int check; 
+
+	while((check = read(fd_r, str_tmp, BUF_SIZE)) != 0) 
+	{
+		if(check < 0) 
+		{
+			perror("Failed to read the file"); 
+			return 7;  
+		}
+		
+		if (write_all(fd_w, str_tmp,  strlen(str_tmp)) < 0)
+		{
+			perror("Failed to write");
+			return 8; 
+		}
+	}
+
+	return 0; 
+}
+
 int main(int argc, char * argv[]) 
 {
 	if (argc != 3) 
@@ -47,7 +78,7 @@ int main(int argc, char * argv[])
 	if(strcmp(argv[1], argv[2]) == 0) 
 	{
 		perror("You can't copy the file to itself"); 
-		return 8; 
+		return 2; 
 	}
 	
 	int fd_r = open(argv[1], O_RDONLY, S_IRUSR | S_IRGRP);  
@@ -55,7 +86,7 @@ int main(int argc, char * argv[])
 	if (fd_r < 0) 
 	{
 		perror("Failed to open file for reading"); 
-		return 2;
+		return 3;
 	} 
 
 	int fd_w = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, 0644); 
@@ -63,43 +94,17 @@ int main(int argc, char * argv[])
 	if (fd_w < 0) 
 	{
 		perror("Failed to open file for writing"); 
-		return 3;
-	} 
-
-	char * str_tmp; 
-
-	str_tmp = (char*)malloc(SHRT_MAX); 
-	if (str_tmp == NULL) 
-	{
-		perror("Faild to allocate the memory");
-		if(good_close(fd_r) + good_close(fd_w) > 0) 
-			return 7; 
 		return 4;
-	}
+	}  
 
-	int check; 
+	int result = my_copy(fd_r, fd_w); 
 
-	while((check = read(fd_r, str_tmp, SHRT_MAX)) != 0) 
-	{
-		if(check < 0) 
-		{
-			perror("Failed to read the file"); 
-			if(good_close(fd_w) + good_close(fd_r) > 0) 
-				return 7;
-			return 5;  
-		}
-		
-		if (write_all(fd_w, str_tmp,  strlen(str_tmp)) < 0)
-		{
-			perror("Failed to write"); 
-			if(good_close(fd_w) + good_close(fd_r) > 0) 
-				return 7; 
-			return 6;
-		}
-	}
 
 	if(good_close(fd_r) + good_close(fd_w) > 0) 
-		return 7; 
-
+		return 5; 
+	
+	if(result > 0) 
+		return result; 
+	
 	return 0; 
 }

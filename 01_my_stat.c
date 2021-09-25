@@ -80,10 +80,9 @@ int main(int argc, char *argv[]) {
          (unsigned)st.stx_size, (unsigned)st.stx_blocks,
          (unsigned)st.stx_blksize, mode(st.stx_mode));
 
-  printf(
-      "ID of containing device: %d, %d \tI-node number: %d\tLink count: %d\t\n",
-      (unsigned)major(st.stx_dev_major), (unsigned)minor(st.stx_dev_minor),
-      (unsigned)st.stx_ino, (unsigned)st.stx_nlink);
+  printf("ID of containing device: %d, %d \tI-node number: %d\tLink count: %d\t\n",
+         (unsigned)major(st.stx_dev_major), (unsigned)minor(st.stx_dev_minor),
+         (unsigned)st.stx_ino, (unsigned)st.stx_nlink);
 
   printf("Acces:  (0%jo/", (uintmax_t)st.stx_mode & 0777);
   printf((st.stx_mode & S_IFMT) & S_IFDIR ? "d" : "-");
@@ -100,5 +99,6 @@ int main(int argc, char *argv[]) {
   printf_time("Last status change: ", &st.stx_ctime);
   printf_time("Last file modification: ", &st.stx_mtime);
   printf_time("Creation: ", &st.stx_btime);
+
   exit(EXIT_SUCCESS);
 }

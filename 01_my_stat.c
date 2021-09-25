@@ -46,14 +46,14 @@ static void printf_time(const char *type, struct statx_timestamp *ts) {
   printf("%s\n", buff);
 }
 
-char *UserName(uid_t uid) {
+char *user_name(uid_t uid) {
   struct passwd *name;
 
   name = getpwuid(uid);
   return (name == NULL) ? NULL : name->pw_name;
 }
 
-char *GroupName(uid_t uid) {
+char *group_name(uid_t uid) {
   struct group *name;
 
   name = getgrgid(uid);
@@ -81,9 +81,7 @@ int main(int argc, char *argv[]) {
 
   printf("%s", mode(st.stx_mode));
 
-  printf("ID of containing device: %u, %u \t",
-         (uint32_t)(major(st.stx_dev_major)),
-         (uint32_t)minor(st.stx_dev_minor));
+  printf("ID of containing device: %u, %u \t", (uint32_t)(major(st.stx_dev_major)), (uint32_t)minor(st.stx_dev_minor));
   printf("I-node number: %u\t", (uint32_t)st.stx_ino);
   printf("Link count: %u\t\n", (uint32_t)st.stx_nlink);
 
@@ -97,8 +95,7 @@ int main(int argc, char *argv[]) {
 
   printf(")\t");
 
-  printf("Uid: (%u/\t%s)\tGid: (%u/\t%s)\n", (uint32_t)st.stx_uid,
-         UserName(st.stx_uid), (uint32_t)st.stx_gid, GroupName(st.stx_gid));
+  printf("Uid: (%u/\t%s)\tGid: (%u/\t%s)\n", (uint32_t)st.stx_uid, user_name(st.stx_uid), (uint32_t)st.stx_gid, group_name(st.stx_gid));
 
   printf_time("Last file access: ", &st.stx_atime);
   printf_time("Last status change: ", &st.stx_ctime);

@@ -78,12 +78,7 @@ int main(int argc, char * argv[])
 
 		printf("%c %s\n", type, entry->d_name);
 	}
-
-	if(close(dir_fd) == -1) 
-	{
-		perror("Failed to close"); 
-		return 3; 
-	}
+	
 	if(closedir(dir_str) == -1) 
 	{
 		perror("Failed to close dir"); 

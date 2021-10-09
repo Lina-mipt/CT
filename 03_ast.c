@@ -63,8 +63,7 @@ int my_copy(int fd_r, int fd_w)
 
 void copy_blk_chr(char *pathname, mode_t mode, dev_t dev)
 {
-    dev_t dev_res = makedev(major(dev), minor(dev));
-    if (mknod(pathname, mode, dev_res) == -1)
+    if (mknod(pathname, mode, dev) == -1)
     {
         perror("mknod");
         exit(1);

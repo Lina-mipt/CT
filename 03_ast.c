@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <fcntl.h>
 #include <grp.h>
+#include <linux/limits.h>
 #include <pwd.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -11,8 +12,6 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-//#include <linux/fcntl.h>
-#define BUFF_SIZE 128
 
 #define BUF_SIZE_CPY 4096
 
@@ -41,7 +40,7 @@ int my_copy(int fd_r, int fd_w)
         return 6;
     }
 
-    int check;
+    ssize_t check;
 
     while ((check = read(fd_r, str_tmp, BUF_SIZE_CPY)) != 0)
     {
@@ -58,90 +57,111 @@ int my_copy(int fd_r, int fd_w)
         }
     }
 
+    free(str_tmp);
     return 0;
 }
 
-void copy_blk_chr(char *pathname, mode_t mode, dev_t dev)
+void copy_blk_chr(const char *output_f, mode_t mode, dev_t dev)
 {
-    if (mknod(pathname, mode, dev) == -1)
+    if (mknod(output_f, mode, dev) == -1)
     {
         perror("mknod");
         exit(1);
     }
 }
 
-void copy_fifo(char *pathname, mode_t mode)
+void copy_fifo(const char *output_f, mode_t mode)
 {
-    if (mkfifo(pathname, mode) == -1)
+    if (mkfifo(output_f, mode) == -1)
     {
         perror("mkfifo");
         exit(1);
     }
 }
 
-void copy_lnk(char *pathname, char *pathfrom)
+void copy_lnk(const char *output_f, const char *input_f, const off_t size)
 {
-    size_t bufsiz = 2048;
-    char buf[bufsiz];
+    size_t bufsize = size + 1;
 
-    int len = 0;
+    if (bufsize == 0)
+        bufsize = PATH_MAX;
 
-    if ((len = readlink(pathfrom, buf, bufsiz)) == -1)
+    char *buf = malloc(bufsize);
+
+    if (buf == NULL)
+    {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+
+    ssize_t len = 0;
+
+    if ((len = readlink(input_f, buf, bufsize)) != bufsize)
     {
         perror("readlink");
+        free(buf);
         exit(1);
     }
 
     buf[len] = '\0';
 
-    if (symlink(buf, pathname) == -1)
+    if (symlink(buf, output_f) == -1)
     {
         perror("symlink");
+        free(buf);
         exit(1);
     }
+
+    free(buf);
 }
 
-void solve(const struct stat st, char *pathname, char *pathfrom)
+void copy_file(const char *output_f, const char *input_f)
 {
-    switch (st.st_mode & S_IFMT)
+    int fd_r = open(input_f, O_RDONLY, S_IRUSR | S_IRGRP);
+
+    if (fd_r < 0)
+    {
+        perror("Failed to open file for reading");
+        exit(1);
+    }
+
+    int fd_w = open(output_f, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+    if (fd_w < 0)
+    {
+        perror("Failed to open file for writing");
+        exit(1);
+    }
+
+    if (my_copy(fd_r, fd_w) > 0)
+    {
+        perror("Copy");
+        exit(1);
+    }
+
+    close(fd_r);
+    close(fd_w);
+}
+
+void solve(const struct stat *st, const char *output_f, const char *input_f)
+{
+    switch (st->st_mode & S_IFMT)
     {
     case S_IFBLK:
-        copy_blk_chr(pathname, st.st_mode, st.st_dev);
+        copy_blk_chr(output_f, st->st_mode, st->st_dev);
         break; //"block device";
     case S_IFCHR:
-        copy_blk_chr(pathname, st.st_mode, st.st_dev);
+        copy_blk_chr(output_f, st->st_mode, st->st_dev);
         break;
     case S_IFIFO:
-        copy_fifo(pathname, st.st_mode);
+        copy_fifo(output_f, st->st_mode);
         break; //"FIFO/pipe";
     case S_IFLNK:
-        copy_lnk(pathname, pathfrom);
+        copy_lnk(output_f, input_f, st->st_size);
         break; //"symlink";
-    case S_IFREG: {
-        int fd_r = open(pathfrom, O_RDONLY, S_IRUSR | S_IRGRP);
-
-        if (fd_r < 0)
-        {
-            perror("Failed to open file for reading");
-            exit(1);
-        }
-
-        int fd_w = open(pathname, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-
-        if (fd_w < 0)
-        {
-            perror("Failed to open file for writing");
-            exit(1);
-        }
-
-        if (my_copy(fd_r, fd_w) > 0)
-        {
-            perror("Copy");
-            exit(1);
-        }
-
-    } //"regular file";
-    break;
+    case S_IFREG:
+        copy_file(output_f, input_f); //"regular file";
+        break;
     default: {
         printf("We cann't copy this");
         exit(1);
@@ -153,7 +173,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 3)
     {
-        fprintf(stderr, "Usage: %s <pathname>  %d\n", argv[0], argc);
+        fprintf(stderr, "Usage: %s <output_f>  %d\n", argv[0], argc);
         exit(EXIT_FAILURE);
     }
 
@@ -165,7 +185,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    solve(st, argv[2], argv[1]);
+    solve(&st, argv[2], argv[1]);
 
     exit(EXIT_SUCCESS);
 }

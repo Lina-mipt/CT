@@ -78,7 +78,7 @@ void copy_fifo(const char *output_f, int dir_fd_w, mode_t mode)
 void copy_dir(const char *output_f, int dir_fd_w, mode_t mode)
 {
     if (strcmp(output_f, ".") == 0 || strcmp(output_f, "..") == 0)
-        exit(1);
+     return; 
     if (mkdirat(dir_fd_w, output_f, mode) == -1)
     {
         printf("%s\n", output_f);
@@ -151,24 +151,78 @@ void copy_file(const char *output_f, const char *input_f, int dir_fd_r, int dir_
     close(fd_w);
 }
 
+
+void copy_metodata(int dir_fd_r, int dir_fd_w, const char* input_f, const char* output_f, const struct stat* st)
+{
+    int fd_r = openat(dir_fd_r, input_f, O_RDONLY); // file to read from
+
+    if (fd_r == -1)
+    {
+        perror("Cannot open fileto read\n");
+        exit(1);
+    }
+
+    int fd_w = openat(dir_fd_w, output_f, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR); // file to write in
+
+    if (fd_w == -1)
+    {
+        perror("Cannot open file to write\n");
+        exit(1);
+    }
+
+    int mode = fchmod(fd_w, st->st_mode);
+
+    if (mode != 0)
+    {
+        perror("Error with copying meta data");
+        exit(1);
+    }
+
+    struct timespec times[2] = {st->st_atim, st->st_mtim};
+
+    int time = futimens(fd_w, times);
+
+    if (time != 0)
+    {
+        perror("Error with copying time");
+        exit(1);
+    }
+
+    int owner = fchown(fd_w, st->st_uid, st->st_gid);
+
+    if (owner != 0)
+    {
+        perror("fchown");
+        exit(1);
+    }
+
+    if (good_close(fd_r) + good_close(fd_w) > 0)
+        exit(1);
+}
+
 void copy_all(const struct stat *st, const char *output_f, const char *input_f, int dir_fd_r, int dir_fd_w)
 {
     switch (st->st_mode & S_IFMT)
     {
     case S_IFBLK:
         copy_blk_chr(output_f, dir_fd_w, st->st_mode, st->st_dev);
+		copy_metodata(dir_fd_r, dir_fd_w, input_f, output_f, st);
         break; //"block device";
     case S_IFCHR:
         copy_blk_chr(output_f, dir_fd_w, st->st_mode, st->st_dev);
-        break;
+        copy_metodata(dir_fd_r, dir_fd_w, input_f, output_f, st);
+		break;
     case S_IFIFO:
         copy_fifo(output_f, dir_fd_w, st->st_mode);
-        break; //"FIFO/pipe";
+        copy_metodata(dir_fd_r, dir_fd_w, input_f, output_f, st);
+		break; //"FIFO/pipe";
     case S_IFLNK:
         copy_lnk(output_f, dir_fd_w, input_f, st->st_size);
+		copy_metodata(dir_fd_r, dir_fd_w, input_f, output_f, st);
         break; //"symlink";
     case S_IFREG:
-        copy_file(output_f, input_f, dir_fd_r, dir_fd_w); //"regular file";
+        copy_file(output_f, input_f, dir_fd_r, dir_fd_w); //"regular file"
+		copy_metodata(dir_fd_r, dir_fd_w, input_f, output_f, st);		
         break;
     case S_IFDIR:
         copy_dir(output_f, dir_fd_w, st->st_mode);
@@ -188,52 +242,8 @@ int copy_with_metadata(const char *input_f, const char *output_f, int dir_fd_r, 
         return 1;
     }
 
-    copy_all(&st, output_f, input_f, dir_fd_r, dir_fd_w);
+    copy_all(&st, output_f, input_f, dir_fd_r, dir_fd_w); 
 
-    int fd_r = openat(dir_fd_r, input_f, O_RDONLY); // file to read from
-
-    if (fd_r == -1)
-    {
-        perror("Cannot open fileto read\n");
-        return 4;
-    }
-
-    int fd_w = openat(dir_fd_w, output_f, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR); // file to write in
-
-    if (fd_w == -1)
-    {
-        perror("Cannot open file to write\n");
-        return 5;
-    }
-
-    int mode = fchmod(fd_w, st.st_mode);
-
-    if (mode != 0)
-    {
-        perror("Error with copying meta data");
-        return 7;
-    }
-
-    struct timespec times[2] = {st.st_atim, st.st_mtim};
-
-    int time = futimens(fd_w, times);
-
-    if (time != 0)
-    {
-        perror("Error with copying time");
-        return 8;
-    }
-
-    int owner = fchown(fd_w, st.st_uid, st.st_gid);
-
-    if (owner != 0)
-    {
-        perror("fchown");
-        return 9;
-    }
-
-    if (good_close(fd_r) + good_close(fd_w) > 0)
-        return 6;
-
+	
     return 0;
 }

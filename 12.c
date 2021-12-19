@@ -27,8 +27,8 @@ int main(void)
            (grid ? grid->gr_name : "?"));
 
     // effective user/group ID
-    uid_t euid = getuid();
-    gid_t egid = getgid();
+    uid_t euid = geteuid();
+    gid_t egid = getegid();
 
     struct passwd *epwuid = getpwuid(euid);
     struct group *egrid = getgrgid(egid);

@@ -60,14 +60,5 @@ int main(void)
     printf("umask: %o\n", u_mask);
     u_mask = umask(u_mask);
 
-    // Sheduling priority
-    int pr = getpriority(PRIO_PROCESS, 0);
-    if (pr == -1)
-    {
-        perror("Failure getpriority");
-        exit(EXIT_FAILURE);
-    }
-    printf("Sheduling priority: %d\n", pr);
-
     return 0;
 }
